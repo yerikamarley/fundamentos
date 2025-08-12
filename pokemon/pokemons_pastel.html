@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Pokémons</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg1:#F7F1FF; --bg2:#EAF7FF; --ink:#353535; --card:#FFFFFF; --soft:#FFE8ED; --soft2:#E7F6EF; --soft3:#FFF2CC; --accent:#A78BFA; --accent2:#60A5FA; --accent3:#F472B6; }
+  *{box-sizing:border-box} body{margin:0;font-family:Poppins,system-ui,Arial;color:var(--ink);background:linear-gradient(135deg,var(--bg1),var(--bg2)) fixed;min-height:100vh;display:flex;flex-direction:column}
+  header{padding:32px 20px;text-align:center} h1{margin:0 0 10px;font-weight:700;letter-spacing:.5px} .sub{opacity:.7}
+  .shell{max-width:1100px;width:100%;margin:0 auto;padding:0 16px 48px}
+  .bar{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:10px 0 24px}
+  input[type="search"]{flex:1 1 260px;max-width:420px;padding:12px 14px;border-radius:14px;border:1px solid rgba(0,0,0,.07);background:#fff;outline:none;font-size:16px;box-shadow:0 6px 18px rgba(0,0,0,.05)}
+  button{border:0;padding:12px 18px;border-radius:14px;cursor:pointer;font-weight:600;font-size:15px;color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.12);transition:transform .08s ease;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  button:active{transform:translateY(1px)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px}
+  .card{background:var(--card);border-radius:22px;overflow:hidden;position:relative;box-shadow:0 14px 38px rgba(0,0,0,.12);transition:transform .15s ease,box-shadow .15s ease}
+  .card:hover{transform:translateY(-3px);box-shadow:0 18px 44px rgba(0,0,0,.16)}
+  .badge{position:absolute;top:10px;left:10px;font-size:12px;padding:6px 10px;border-radius:999px;background:linear-gradient(135deg,var(--soft),var(--soft2));color:#5b5b5b;font-weight:600;box-shadow:0 6px 16px rgba(0,0,0,.08)}
+  .thumb{display:grid;place-items:center;aspect-ratio:1/1;background:linear-gradient(135deg,var(--soft2),var(--soft3))}
+  .thumb img{width:120px;height:120px}
+  .meta{padding:12px 14px 16px;text-align:center}
+  .name{font-weight:700;text-transform:capitalize}
+  .chips{margin-top:8px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+  .chip{font-size:12px;padding:6px 10px;border-radius:999px;background:linear-gradient(135deg,#fde2f1,#e5f0ff);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+  .empty{padding:40px;text-align:center;opacity:.7}
+  footer{padding:20px;text-align:center;opacity:.6;font-size:13px}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Pokémons</h1>
+    <div class="sub">Galería con arte oficial en un estilo suave y pastel</div>
+  </header>
+  <main class="shell">
+    <div class="bar">
+      <input id="q" type="search" placeholder="Buscar por nombre..." />
+      <button id="load">Cargar 20 más</button>
+      <button id="reset" style="background:linear-gradient(135deg,var(--accent3),var(--accent2))">Reiniciar</button>
+    </div>
+    <section id="grid" class="grid"></section>
+    <div id="empty" class="empty" style="display:none">Sin resultados</div>
+  </main>
+  <footer>Datos de PokeAPI</footer>
+  <script>
+    const grid = document.getElementById('grid');
+    const loadBtn = document.getElementById('load');
+    const resetBtn = document.getElementById('reset');
+    const q = document.getElementById('q');
+    const empty = document.getElementById('empty');
+    let offset = 0, limit = 20, cache = [];
+    function pad4(n){ n = String(n); return n.length >= 4 ? n : ('0000' + n).slice(-4); }
+    function idFromUrl(u){ const p = u.split('/').filter(Boolean); return p[p.length - 1]; }
+    function artUrl(id){ return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`; }
+    async function load(){
+      try{
+        const r = await fetch(`https://pokeapi.co/api/v2/pokemon?offset=${offset}&limit=${limit}`);
+        if(!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        if(!data || !Array.isArray(data.results)) throw new Error('Respuesta inesperada de la API');
+        const items = data.results.map(x => ({ id: Number(idFromUrl(x.url)), name: x.name }));
+        cache = cache.concat(items);
+        offset += limit;
+        render(cache);
+      }catch(err){
+        console.error('Fallo cargando Pokémons:', err);
+        empty.textContent = 'No se pudieron cargar los datos. Revisa tu conexión e intenta de nuevo.';
+        empty.style.display = 'block';
+      }
+    }
+    function render(list){
+      grid.innerHTML = '';
+      list.forEach(p => {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.innerHTML = `
+          <span class="badge">#${pad4(p.id)}</span>
+          <div class="thumb"><img alt="${p.name}" src="${artUrl(p.id)}"></div>
+          <div class="meta">
+            <div class="name">${p.name}</div>
+            <div class="chips">
+              <span class="chip">HP ?</span>
+              <span class="chip">Tipo ?</span>
+            </div>
+          </div>`;
+        grid.appendChild(card);
+      });
+      empty.style.display = list.length ? 'none' : 'block';
+    }
+    function filter(){
+      const term = q.value.trim().toLowerCase();
+      if(!term){ render(cache); return; }
+      render(cache.filter(p => p.name.includes(term)));
+    }
+    loadBtn.addEventListener('click', load);
+    resetBtn.addEventListener('click', () => { q.value = ''; render(cache); });
+    q.addEventListener('input', filter);
+    load();
+  </script>
+</body>
+</html>
